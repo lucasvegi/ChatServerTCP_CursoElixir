@@ -1,6 +1,6 @@
 
 defmodule ChatServer.Server do
-  @menu "Comandos: POST <mensagem>, LIST_MSGS, LIST_PIDS e EXIT\n"
+  @menu "Comandos: POST <mensagem>, LIST_MSGS, LIST_PIDS e EXIT\n\r"
 
   @moduledoc """
     - start/1 inicia o servidor.
@@ -48,11 +48,11 @@ defmodule ChatServer.Server do
   # - Chama loop/1 para iniciar o diálogo com o usuário.
 
   defp handle_client(socket) do
-    :gen_tcp.send(socket, "\nBem-vindo ao Quadro de Mensagens!\n#{@menu}")
+    :gen_tcp.send(socket, "\nBem-vindo ao Quadro de Mensagens!\n\r#{@menu}")
 
     IO.puts("\nCliente conectado = [Socket: #{inspect(socket)}]")
     loop(socket)
-    IO.puts("\nCliente encerrado = [Socket: #{inspect(socket)}]\n") # só chega aqui quando função recursiva loop/1 terminar!
+    IO.puts("\nCliente encerrado = [Socket: #{inspect(socket)}]\n\r") # só chega aqui quando função recursiva loop/1 terminar!
   end
 
   # Função loop/1
@@ -67,37 +67,43 @@ defmodule ChatServer.Server do
   # - Depois de cada comando (exceto EXIT), volta para o próprio loop (via recursividade), permitindo múltiplas interações.
 
   defp loop(socket) do
-    case :gen_tcp.recv(socket, 0) do
-      {:ok, data} ->
-        cleaned = String.trim(data)
+    try do
 
-        case String.split(cleaned, " ", parts: 2) do
-          ["POST", msg] ->
-            ChatServer.MessageBoard.post("#{inspect(socket)}: " <> msg)
-            :gen_tcp.send(socket, "\nMensagem adicionada!\n\n#{@menu}")
-            IO.puts("Mensagem \"#{msg}\" recebida de cliente: #{inspect(socket)}")
-            loop(socket)
+      case :gen_tcp.recv(socket, 0) do
+        {:ok, data} ->
+          cleaned = String.trim(data)
 
-          ["LIST_MSGS"] ->
-            messages = ChatServer.MessageBoard.list()
-            :gen_tcp.send(socket,"\n" <> Enum.join(messages, "\n") <> "\n\n#{@menu}")
-            loop(socket)
+          case String.split(cleaned, " ", parts: 2) do
+            ["POST", msg] ->
+              ChatServer.MessageBoard.post("#{inspect(socket)}: " <> msg)
+              :gen_tcp.send(socket, "\nMensagem adicionada!\n\n\r#{@menu}")
+              IO.puts("Mensagem \"#{msg}\" recebida de cliente: #{inspect(socket)}")
+              loop(socket)
 
-          ["LIST_PIDS"] ->
-            pids = list_clients()
-            :gen_tcp.send(socket, "\nTotal: #{length(pids)} processo(s)\n#{inspect(pids)}" <> "\n\n#{@menu}")
-            loop(socket)
+            ["LIST_MSGS"] ->
+              messages = ChatServer.MessageBoard.list()
+              :gen_tcp.send(socket,"\n" <> Enum.join(messages, "\n\r") <> "\n\n\r#{@menu}")
+              loop(socket)
 
-          ["EXIT"] ->
-            :gen_tcp.send(socket, "\nTchau!\n")
-            :gen_tcp.close(socket)
+            ["LIST_PIDS"] ->
+              pids = list_clients()
+              :gen_tcp.send(socket, "\nTotal: #{length(pids)} processo(s)\n\r#{inspect(pids)}" <> "\n\n\r#{@menu}")
+              loop(socket)
 
-          _ ->
-            :gen_tcp.send(socket, "\nComando inválido. Use #{@menu}")
-            loop(socket)
-        end
+            ["EXIT"] ->
+              :gen_tcp.send(socket, "\nTchau!\n\r")
+              :gen_tcp.close(socket)
 
-      {:error, _} -> :gen_tcp.close(socket)
+            _ ->
+              :gen_tcp.send(socket, "\nComando inválido. Use #{@menu}")
+              loop(socket)
+          end
+
+        {:error, _} -> :gen_tcp.close(socket)
+      end
+
+    rescue
+      ArgumentError -> loop(socket)
     end
   end
 
